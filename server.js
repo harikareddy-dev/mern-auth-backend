@@ -1,3 +1,84 @@
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
+require("dotenv").config();
+
+const app = express();
+
+// ----------------------
+// Middleware
+// ----------------------
+app.use(express.json());
+
+// ✅ FIXED CORS (IMPORTANT FOR VERCEL FRONTEND)
+app.use(
+  cors({
+    origin: [
+      "http://localhost:3000",
+      "https://your-app.vercel.app" // 👈 replace with your real Vercel URL
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true
+  })
+);
+
+console.log("SERVER STARTED 🚀");
+
+// ----------------------
+// MongoDB Connection
+// ----------------------
+mongoose
+  .connect(process.env.MONGO_URL)
+  .then(() => console.log("MongoDB Connected ✅"))
+  .catch((err) => console.log("DB Error ❌", err));
+
+// ----------------------
+// User Model
+// ----------------------
+const User = mongoose.model("User", {
+  name: String,
+  email: String,
+  password: String
+});
+
+// ----------------------
+// TEST ROUTE
+// ----------------------
+app.get("/", (req, res) => {
+  res.send("Backend is running 🚀");
+});
+
+// ----------------------
+// SIGNUP ROUTE
+// ----------------------
+app.post("/api/auth/signup", async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: "All fields required" });
+    }
+
+    const existingUser = await User.findOne({ email });
+
+    if (existingUser) {
+      return res.status(400).json({ message: "User already exists" });
+    }
+
+    const user = new User({ name, email, password });
+    await user.save();
+
+    res.json({ message: "Signup success" });
+
+  } catch (err) {
+    console.log("SIGNUP ERROR:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+// ----------------------
+// LOGIN ROUTE
+// ----------------------
 app.post("/api/auth/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -28,4 +109,13 @@ app.post("/api/auth/login", async (req, res) => {
     console.log("LOGIN ERROR:", err);
     res.status(500).json({ message: "Server error", error: err.message });
   }
+});
+
+// ----------------------
+// START SERVER
+// ----------------------
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log("Running on port", PORT);
 });
